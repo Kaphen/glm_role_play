@@ -84,13 +84,13 @@ def generate_token(apikey: str, exp_seconds: int):
         id, secret = apikey.split(".")
     except Exception as e:
         raise Exception("invalid apikey", e)
- 
+
     payload = {
         "api_key": id,
         "exp": int(round(time.time() * 1000)) + exp_seconds * 1000,
         "timestamp": int(round(time.time() * 1000)),
     }
- 
+
     return jwt.encode(
         payload,
         secret,
@@ -114,7 +114,7 @@ def get_characterglm_response(messages: TextMsgList, meta: CharacterMeta):
             incremental=True)
     )
     resp.raise_for_status()
-    
+
     # 解析响应（非官方实现）
     sep = b':'
     last_event = None
@@ -165,7 +165,7 @@ def get_chatglm_response_via_sdk(messages: TextMsgList):
 
 def generate_role_appearance(role_profile: str):
     """ 用chatglm生成角色的外貌描写 """
-    
+
     instruction = f"""
 请从下列文本中，抽取人物的外貌描写。若文本中不包含外貌描写，请你推测人物的性别、年龄，并生成一段外貌描写。要求：
 1. 只生成外貌描写，不要生成任何多余的内容。
@@ -214,7 +214,7 @@ def generate_chat_scene_prompt(messages: TextMsgList, meta: CharacterMeta):
 4. 不要超过50字
 """.rstrip()
     print(instruction)
-    
+
     return get_chatglm_response_via_sdk(
         messages=[
             {
@@ -230,7 +230,7 @@ def generate_cogview_image(prompt: str) -> str:
     # reference: https://open.bigmodel.cn/dev/api#cogview
     from zhipuai import ZhipuAI
     client = ZhipuAI(api_key=API_KEY) # 请填写您自己的APIKey
-    
+
     response = client.images.generations(
         model="cogview-3", #填写需要调用的模型名称
         prompt=prompt
@@ -297,7 +297,7 @@ with st.container():
         st.text_area(label="角色A人设", key="role_A_info", on_change=lambda : st.session_state["meta"].update(role_A_info=st.session_state["role_A_info"]), help="角色的详细人设信息，不可以为空")
 
     with col2:
-        st.text_input(label="角色B名", value="用户", key="role_B_name", on_change=lambda : st.session_state["meta"].update(role_B_name=st.session_state["role_B_name"]), help="用户的名字，不可以为空")
+        st.text_input(label="角色B名", value="", key="role_B_name", on_change=lambda : st.session_state["meta"].update(role_B_name=st.session_state["role_B_name"]), help="用户的名字，不可以为空")
         st.text_area(label="角色B人设", value="", key="role_B_info", on_change=lambda : st.session_state["meta"].update(role_B_info=st.session_state["role_B_info"]), help="用户的详细人设信息，不可以为空")
 
 
@@ -321,14 +321,14 @@ def draw_new_image():
                 meta=st.session_state["meta"]
             )
         )
-        
+
     else:
         image_prompt = "".join(generate_role_appearance(st.session_state["meta"]["role_A_info"]))
 
     if not image_prompt:
         st.error("调用chatglm生成Cogview prompt出错")
         return
-    
+
     # TODO: 加上风格选项
     image_prompt = st.session_state["picture_style"] + '风格。' + image_prompt.strip()
 
@@ -377,7 +377,7 @@ with st.container():
     n_button = len(button_labels)
     cols = st.columns(n_button)
     button_key_to_col = dict(zip(button_labels.keys(), cols))
-    
+
     with button_key_to_col["clear_meta"]:
         clear_meta = st.button(button_labels["clear_meta"], key="clear_meta")
         if clear_meta:
@@ -412,12 +412,12 @@ with st.container():
             show_api_key = st.button(button_labels["show_api_key"], key="show_api_key")
             if show_api_key:
                 print(f"API_KEY = {API_KEY}")
-        
+
         with button_key_to_col["show_meta"]:
             show_meta = st.button(button_labels["show_meta"], key="show_meta")
             if show_meta:
                 print(f"meta = {st.session_state['meta']}")
-        
+
         with button_key_to_col["show_history"]:
             show_history = st.button(button_labels["show_history"], key="show_history")
             if show_history:
@@ -477,11 +477,11 @@ meta_role_B_as_user = {
         'user_info': st.session_state["meta"]['role_B_info']
     }
 
-'''
-处理prompt并请求GLM大模型：
-- 当轮到角色A回复时，在传给大模型的参数中，将角色A设为assistant, 将角色B设为user;
-- 当轮到角色B回复时，在传给大模型的参数中，将角色B设为assistant, 将角色A设为user;
-'''
+
+# 处理prompt并请求GLM大模型：
+# - 当轮到角色A回复时，在传给大模型的参数中，将角色A设为assistant, 将角色B设为user;
+# - 当轮到角色B回复时，在传给大模型的参数中，将角色B设为assistant, 将角色A设为user;
+
 def start_chat(role_name, placeholder):
     history_tmp = []
     history = filter_text_msg(st.session_state["history"])

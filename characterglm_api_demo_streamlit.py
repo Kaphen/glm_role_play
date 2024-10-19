@@ -464,15 +464,15 @@ def output_stream_response(response_stream: Iterator[str], placeholder):
     return content
 
 meta_role_A_as_user = {
-        'assistant_name': st.session_state["meta"]['role_B_name'],
-        'assistant_info': st.session_state["meta"]['role_B_info'],
+        'bot_name': st.session_state["meta"]['role_B_name'],
+        'bot_info': st.session_state["meta"]['role_B_info'],
         'user_name': st.session_state["meta"]['role_A_name'],
         'user_info': st.session_state["meta"]['role_A_info']
     }
 
 meta_role_B_as_user = {
-        'assistant_name': st.session_state["meta"]['role_A_name'],
-        'assistant_info': st.session_state["meta"]['role_A_info'],
+        'bot_name': st.session_state["meta"]['role_A_name'],
+        'bot_info': st.session_state["meta"]['role_A_info'],
         'user_name': st.session_state["meta"]['role_B_name'],
         'user_info': st.session_state["meta"]['role_B_info']
     }
@@ -481,8 +481,7 @@ meta_role_B_as_user = {
 # 处理prompt并请求GLM大模型：
 # - 当轮到角色A回复时，在传给大模型的参数中，将角色A设为assistant, 将角色B设为user;
 # - 当轮到角色B回复时，在传给大模型的参数中，将角色B设为assistant, 将角色A设为user;
-
-def start_chat(role_name, placeholder):
+def reply_chat_by_glm(role_name, placeholder):
     history_tmp = []
     history = filter_text_msg(st.session_state["history"])
 
@@ -499,42 +498,50 @@ def start_chat(role_name, placeholder):
     else:
         meta = meta_role_B_as_user
 
+    print(f'meta={meta}')
+    print(f'history={history_tmp}')
     response_stream = get_characterglm_response(history_tmp, meta=meta)
     bot_response = output_stream_response(response_stream, placeholder)
     print(bot_response)
     return bot_response
 
-
-# 交替生成对话数据并展示
-if generate_chat_record:
+def start_chat():
     print(f"交替生成对话 = {st.session_state['meta']}")
     # 无历史对话时，角色A开场
     if len(filter_text_msg(st.session_state["history"])) < 1:
-        start_message = "开始对话吧"
+        with st.chat_message(name=st.session_state["meta"]['role_A_name']):
+            role_A_message_placeholder = st.empty()
+        start_message = "你好"
         st.session_state["history"].append({"role": st.session_state["meta"]['role_A_name'], "content": start_message})
+        role_A_message_placeholder.markdown(start_message)
     # 生成多轮对话
     for _ in range(10):
         # 根据角色A的最后一次发言,角色B回复
         with st.chat_message(name=st.session_state["meta"]['role_B_name']):
             role_B_message_placeholder = st.empty()
-        role_B_response = start_chat(st.session_state["meta"]['role_A_name'], role_B_message_placeholder)
+        role_B_response = reply_chat_by_glm(st.session_state["meta"]['role_A_name'], role_B_message_placeholder)
         if not role_B_response:
             st.markdown("生成出错")
             break
         else:
             st.session_state["history"].append(TextMsg({"role": st.session_state["meta"]['role_B_name'], "content": role_B_response}))
-
-        # time.sleep(0.5)
+            time.sleep(0.5)
 
         # 根据角色B的最后一次发言,角色A回复
         with st.chat_message(name=st.session_state["meta"]['role_A_name']):
             role_A_message_placeholder = st.empty()
-        role_A_response = start_chat(st.session_state["meta"]['role_B_name'], role_A_message_placeholder)
+        role_A_response = reply_chat_by_glm(st.session_state["meta"]['role_B_name'], role_A_message_placeholder)
         if not role_A_response:
             st.markdown("生成出错")
             break
         else:
             st.session_state["history"].append(TextMsg({"role": st.session_state["meta"]['role_A_name'], "content": role_A_response}))
+            time.sleep(0.5)
+
+
+# 交替生成对话数据并展示
+if generate_chat_record:
+    start_chat()
 
 
 # 保存对话数据按钮
